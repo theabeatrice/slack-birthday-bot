@@ -1,0 +1,65 @@
+{
+  "display_information": {
+    "name": "Birthday Bot",
+    "description": "A bot to track and celebrate team birthdays!",
+    "background_color": "#4A154B"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Birthday Bot",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/addbirthday",
+        "description": "Add a birthday (format: /addbirthday MM-DD or /addbirthday @user MM-DD)",
+        "usage_hint": "MM-DD or @user MM-DD"
+      },
+      {
+        "command": "/listbirthdays",
+        "description": "List all saved birthdays",
+          "usage_hint": "No args"
+      },
+      {
+        "command": "/removebirthday",
+        "description": "Remove a birthday (yours or mention someone)",
+        "usage_hint": "or @user"
+      },
+      {
+        "command": "/birthdaytoday",
+        "description": "Check if anyone has a birthday today",
+          "usage_hint": "No args"
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "app_mentions:read",
+        "chat:write",
+        "commands",
+        "channels:history",
+        "groups:history",
+        "im:history",
+        "mpim:history"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": [
+        "app_mention",
+        "message.channels",
+        "message.groups",
+        "message.im",
+        "message.mpim"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": false
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false
+  }
+}
