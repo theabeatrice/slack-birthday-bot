@@ -1,8 +1,6 @@
 import os
 import json
 import random
-import csv
-import io
 from datetime import datetime, date, timedelta
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
@@ -24,9 +22,9 @@ MOUNTAIN_TZ = pytz.timezone('America/Denver')
 
 # Default configuration
 DEFAULT_CONFIG = {
-    "announcement_channel": None,
-    "announcement_time": "09:00",
-    "reminder_days": 3,
+    "announcement_channel": None,  # Set with /setbirthdaychannel
+    "announcement_time": "09:00",  # 9 AM Mountain Time
+    "reminder_days": 3,  # Remind 3 days before
     "giphy_enabled": True,
     "giphy_api_key": os.environ.get("GIPHY_API_KEY", "")
 }
@@ -48,25 +46,18 @@ ZODIAC_SIGNS = {
     (12, 31): ("♑", "Capricorn"),
 }
 
-# Zodiac element mapping
-ZODIAC_ELEMENTS = {
-    "Aries": "Fire", "Leo": "Fire", "Sagittarius": "Fire",
-    "Taurus": "Earth", "Virgo": "Earth", "Capricorn": "Earth",
-    "Gemini": "Air", "Libra": "Air", "Aquarius": "Air",
-    "Cancer": "Water", "Scorpio": "Water", "Pisces": "Water"
-}
-
 def get_zodiac_sign(month, day):
     """Get zodiac sign emoji and name from birth date"""
     date_tuple = (month, day)
     
+    # Find the zodiac sign
     for end_date, (emoji, name) in ZODIAC_SIGNS.items():
         if month < end_date[0] or (month == end_date[0] and day <= end_date[1]):
             return emoji, name
     
-    return "♑", "Capricorn"
+    return "♑", "Capricorn"  # Default fallback
 
-# Fun birthday messages
+# Fun birthday messages (with zodiac placeholder)
 BIRTHDAY_MESSAGES = [
     "🎉 Happy Birthday {name}! {zodiac} Hope your day is as amazing as you are! 🎂",
     "🎈 It's {name}'s special day! {zodiac} Wishing you all the best! 🎊",
@@ -78,6 +69,7 @@ BIRTHDAY_MESSAGES = [
     "🍰 Time to celebrate {name}! {zodiac} May your birthday be filled with joy and cake! 🎂"
 ]
 
+# Giphy birthday GIF search terms
 GIPHY_SEARCH_TERMS = [
     "happy birthday celebration",
     "birthday cake",
@@ -123,6 +115,7 @@ def load_config():
     try:
         with open(CONFIG_FILE, 'r') as f:
             config = json.load(f)
+            # Update with any missing defaults
             for key, value in DEFAULT_CONFIG.items():
                 if key not in config:
                     config[key] = value
@@ -159,7 +152,7 @@ def get_random_birthday_gif():
     return None
 
 def check_birthdays_today():
-    """Check if anyone has a birthday today"""
+    """Check if anyone has a birthday today (in Mountain Time)"""
     birthdays = load_birthdays()
     mountain_now = get_mountain_time()
     today_str = mountain_now.strftime("%m-%d")
@@ -179,7 +172,7 @@ def check_birthdays_today():
     return birthday_people
 
 def check_upcoming_birthdays(days=3):
-    """Check if anyone has a birthday in N days"""
+    """Check if anyone has a birthday in N days (in Mountain Time)"""
     birthdays = load_birthdays()
     mountain_now = get_mountain_time()
     target_date = mountain_now.date() + timedelta(days=days)
@@ -200,51 +193,8 @@ def check_upcoming_birthdays(days=3):
     
     return upcoming_people
 
-def find_birthday_twins():
-    """Find people with the same birthday"""
-    birthdays = load_birthdays()
-    date_groups = {}
-    
-    for user_id, data in birthdays.items():
-        bday = data.get("date")
-        if bday not in date_groups:
-            date_groups[bday] = []
-        date_groups[bday].append(user_id)
-    
-    twins = {date: users for date, users in date_groups.items() if len(users) > 1}
-    return twins
-
-def calculate_birthday_streak():
-    """Find longest streak of days without birthdays"""
-    birthdays = load_birthdays()
-    if not birthdays:
-        return 0
-    
-    # Convert all birthdays to day-of-year
-    days = []
-    for data in birthdays.values():
-        month, day = map(int, data['date'].split('-'))
-        day_of_year = datetime(2024, month, day).timetuple().tm_yday
-        days.append(day_of_year)
-    
-    days = sorted(set(days))
-    
-    if len(days) <= 1:
-        return 365 - len(days)
-    
-    max_gap = 0
-    for i in range(len(days) - 1):
-        gap = days[i + 1] - days[i] - 1
-        max_gap = max(max_gap, gap)
-    
-    # Check wrap-around (end of year to beginning)
-    wrap_gap = (365 - days[-1]) + days[0] - 1
-    max_gap = max(max_gap, wrap_gap)
-    
-    return max_gap
-
 def post_wish_reminder():
-    """Post reminders for upcoming birthdays"""
+    """Post reminders for upcoming birthdays and ask for wishes"""
     config = load_config()
     channel = config.get("announcement_channel")
     reminder_days = config.get("reminder_days", 3)
@@ -261,7 +211,7 @@ def post_wish_reminder():
                 f"📢 *Upcoming Birthday Alert!* 📢\n\n"
                 f"<@{person['user_id']}>'s birthday is coming up on {day_name}! {person['zodiac_emoji']} *{person['zodiac_name']}*\n\n"
                 f"💌 Want to wish them a happy birthday? Use:\n"
-                f"`/addwish <@{person['user_id']}> Your personal message here`\n\n"
+                f"`/addwish @{person['user_id']} Your personal message here`\n\n"
                 f"All wishes will be shared on their special day! 🎂"
             )
             
@@ -270,32 +220,36 @@ def post_wish_reminder():
                     channel=channel,
                     text=message
                 )
-                print(f"Posted birthday reminder for {person['name']}")
+                print(f"Posted birthday reminder and wish request for {person['name']}")
             except Exception as e:
                 print(f"Error posting reminder: {e}")
 
 def post_birthday_announcement():
-    """Automatically post birthday announcements"""
+    """Automatically post birthday announcements with collected wishes"""
     config = load_config()
     channel = config.get("announcement_channel")
     
     if not channel:
-        print("No announcement channel set.")
+        print("No announcement channel set. Use /setbirthdaychannel to configure.")
         return
     
+    # Check today's birthdays
     birthday_people = check_birthdays_today()
     
     if birthday_people:
         for person in birthday_people:
+            # Get the base birthday message
             zodiac_text = f"{person['zodiac_emoji']} *{person['zodiac_name']}*"
             message = random.choice(BIRTHDAY_MESSAGES).format(
                 name=f"<@{person['user_id']}>",
                 zodiac=zodiac_text
             )
             
+            # Check if there are any wishes for this person
             wishes = load_wishes()
             user_wishes = wishes.get(person['user_id'], [])
             
+            # Build the message blocks
             blocks = [
                 {
                     "type": "section",
@@ -306,6 +260,7 @@ def post_birthday_announcement():
                 }
             ]
             
+            # Add wishes if any exist
             if user_wishes:
                 wishes_text = "\n\n💌 *Birthday Wishes from the Team:*\n\n"
                 for wish in user_wishes:
@@ -319,6 +274,7 @@ def post_birthday_announcement():
                     }
                 })
             
+            # Try to add a GIF if enabled
             if config.get("giphy_enabled", True):
                 gif_url = get_random_birthday_gif()
                 if gif_url:
@@ -336,15 +292,16 @@ def post_birthday_announcement():
                 )
                 print(f"Posted birthday announcement for {person['name']}")
                 
+                # Clear wishes for this person after posting
                 if person['user_id'] in wishes:
                     del wishes[person['user_id']]
                     save_wishes(wishes)
                     
             except Exception as e:
-                print(f"Error posting announcement: {e}")
+                print(f"Error posting birthday announcement: {e}")
 
 def schedule_checker():
-    """Background thread for scheduled tasks"""
+    """Background thread to check scheduled tasks in Mountain Time"""
     config = load_config()
     announcement_time = config.get("announcement_time", "09:00")
     
@@ -355,274 +312,9 @@ def schedule_checker():
     
     while True:
         schedule.run_pending()
-        time.sleep(60)
+        time.sleep(60)  # Check every minute
 
-# NEW COMMAND: Import birthdays from CSV
-@app.command("/importbirthdays")
-def handle_import_birthdays(ack, command, say):
-    """Handle CSV import of birthdays"""
-    ack()
-    
-    say("📁 Please upload your CSV file with birthdays!\n\n"
-        "**CSV Format:**\n"
-        "```\n"
-        "Name,Birthday,Slack User ID\n"
-        "John Smith,03-15,U12345678\n"
-        "Sarah Jones,07-22,U87654321\n"
-        "```\n\n"
-        "**Requirements:**\n"
-        "• Birthday format: MM-DD\n"
-        "• Slack User ID starts with 'U'\n"
-        "• No spaces in dates\n\n"
-        "Upload your CSV file in this channel and I'll import it! 📤")
-
-# Event listener for file uploads
-@app.event("file_shared")
-def handle_file_upload(event, say, client):
-    """Handle CSV file upload for birthday import"""
-    try:
-        file_id = event['file_id']
-        
-        # Get file info
-        file_info = client.files_info(file=file_id)
-        file_data = file_info['file']
-        
-        # Check if it's a CSV
-        if not (file_data['name'].endswith('.csv') or file_data['mimetype'] == 'text/csv'):
-            return  # Not a CSV, ignore
-        
-        # Download file content
-        file_url = file_data['url_private']
-        headers = {"Authorization": f"Bearer {os.environ.get('SLACK_BOT_TOKEN')}"}
-        
-        import requests
-        response = requests.get(file_url, headers=headers)
-        csv_content = response.text
-        
-        # Parse CSV
-        csv_reader = csv.DictReader(io.StringIO(csv_content))
-        
-        birthdays = load_birthdays()
-        imported_count = 0
-        error_count = 0
-        errors = []
-        
-        for row in csv_reader:
-            try:
-                name = row.get('Name', '').strip()
-                birthday = row.get('Birthday', '').strip()
-                user_id = row.get('Slack User ID', '').strip()
-                
-                if not all([name, birthday, user_id]):
-                    error_count += 1
-                    errors.append(f"Missing data in row: {row}")
-                    continue
-                
-                # Validate date format
-                datetime.strptime(f"2024-{birthday}", "%Y-%m-%d")
-                
-                # Validate Slack User ID
-                if not user_id.startswith('U'):
-                    error_count += 1
-                    errors.append(f"Invalid Slack ID for {name}: {user_id}")
-                    continue
-                
-                # Save birthday
-                birthdays[user_id] = {
-                    "name": name,
-                    "date": birthday
-                }
-                imported_count += 1
-                
-            except Exception as e:
-                error_count += 1
-                errors.append(f"Error processing {name}: {str(e)}")
-        
-        save_birthdays(birthdays)
-        
-        # Send result message
-        result_message = f"✅ *Import Complete!*\n\n"
-        result_message += f"📊 Successfully imported: *{imported_count}* birthdays\n"
-        
-        if error_count > 0:
-            result_message += f"⚠️ Errors: {error_count} rows\n\n"
-            if len(errors) <= 5:
-                result_message += "*Error details:*\n"
-                for error in errors:
-                    result_message += f"• {error}\n"
-            else:
-                result_message += f"*First 5 errors:*\n"
-                for error in errors[:5]:
-                    result_message += f"• {error}\n"
-                result_message += f"\n_...and {len(errors) - 5} more_"
-        
-        result_message += f"\n\n🎂 Use `/listbirthdays` to see all birthdays!"
-        
-        say(result_message)
-        
-    except Exception as e:
-        say(f"❌ Error importing CSV: {str(e)}\n\nPlease check your file format and try again!")
-
-# NEW COMMAND: Birthday Month Leaderboard
-@app.command("/birthdayleaderboard")
-def handle_birthday_leaderboard(ack, say):
-    """Show birthday month leaderboard"""
-    ack()
-    
-    birthdays = load_birthdays()
-    
-    if not birthdays:
-        say("No birthdays saved yet! Use `/addbirthday MM-DD` or `/importbirthdays` to add some.")
-        return
-    
-    # Count by month
-    month_counts = {}
-    for user_id, data in birthdays.items():
-        month = int(data['date'].split('-')[0])
-        month_name = datetime(2024, month, 1).strftime("%B")
-        if month_name not in month_counts:
-            month_counts[month_name] = []
-        month_counts[month_name].append(user_id)
-    
-    # Sort by count
-    sorted_months = sorted(month_counts.items(), key=lambda x: len(x[1]), reverse=True)
-    
-    # Get current month for context
-    mountain_now = get_mountain_time()
-    current_month = mountain_now.strftime("%B")
-    
-    message = "🏆 *Birthday Month Leaderboard* 🏆\n\n"
-    
-    medals = ["🥇", "🥈", "🥉"]
-    for i, (month, users) in enumerate(sorted_months):
-        count = len(users)
-        medal = medals[i] if i < 3 else "📅"
-        crown = " 👑" if month == current_month else ""
-        message += f"{i+1}. {medal} *{month}* - {count} birthday{'s' if count != 1 else ''}{crown}\n"
-    
-    # Add fun stats
-    if sorted_months:
-        busiest_month = sorted_months[0][0]
-        busiest_count = len(sorted_months[0][1])
-        
-        # Find quietest month(s)
-        all_months = ["January", "February", "March", "April", "May", "June",
-                     "July", "August", "September", "October", "November", "December"]
-        months_with_birthdays = set(month_counts.keys())
-        months_without = [m for m in all_months if m not in months_with_birthdays]
-        
-        message += f"\n🎂 *Busiest Month:* {busiest_month} ({busiest_count} birthdays)"
-        
-        if months_without:
-            message += f"\n😴 *No birthdays in:* {', '.join(months_without)}"
-        
-        # Current month context
-        if current_month in month_counts:
-            current_count = len(month_counts[current_month])
-            message += f"\n\n🎉 *This month ({current_month}):* {current_count} birthday{'s' if current_count != 1 else ''}"
-    
-    say(message)
-
-# ENHANCED COMMAND: Team Analytics Dashboard
-@app.command("/teamanalytics")
-def handle_team_analytics(ack, say):
-    """Show comprehensive team birthday analytics"""
-    ack()
-    
-    birthdays = load_birthdays()
-    
-    if not birthdays:
-        say("No birthdays saved yet! Use `/addbirthday MM-DD` or `/importbirthdays` to add some.")
-        return
-    
-    total_birthdays = len(birthdays)
-    
-    # Month distribution
-    month_counts = {}
-    zodiac_counts = {}
-    element_counts = {"Fire": 0, "Earth": 0, "Air": 0, "Water": 0}
-    
-    for user_id, data in birthdays.items():
-        month, day = map(int, data['date'].split('-'))
-        month_name = datetime(2024, month, 1).strftime("%B")
-        month_counts[month_name] = month_counts.get(month_name, 0) + 1
-        
-        _, zodiac_name = get_zodiac_sign(month, day)
-        zodiac_counts[zodiac_name] = zodiac_counts.get(zodiac_name, 0) + 1
-        element = ZODIAC_ELEMENTS.get(zodiac_name)
-        if element:
-            element_counts[element] += 1
-    
-    # Calculate stats
-    avg_per_month = total_birthdays / 12
-    max_month = max(month_counts.items(), key=lambda x: x[1]) if month_counts else ("None", 0)
-    min_month = min(month_counts.items(), key=lambda x: x[1]) if month_counts else ("None", 0)
-    
-    most_common_zodiac = max(zodiac_counts.items(), key=lambda x: x[1]) if zodiac_counts else ("None", 0)
-    least_common_zodiac = min(zodiac_counts.items(), key=lambda x: x[1]) if zodiac_counts else ("None", 0)
-    
-    # Upcoming birthdays
-    mountain_now = get_mountain_time()
-    today = mountain_now.date()
-    
-    this_week = []
-    this_month = []
-    next_30 = []
-    
-    for user_id, data in birthdays.items():
-        month, day = map(int, data['date'].split('-'))
-        bday_this_year = date(today.year, month, day)
-        if bday_this_year < today:
-            bday_this_year = date(today.year + 1, month, day)
-        
-        days_until = (bday_this_year - today).days
-        
-        if days_until <= 7:
-            this_week.append(user_id)
-        if bday_this_year.month == today.month and bday_this_year.day >= today.day:
-            this_month.append(user_id)
-        if days_until <= 30:
-            next_30.append(user_id)
-    
-    # Fun facts
-    twins = find_birthday_twins()
-    longest_gap = calculate_birthday_streak()
-    
-    # Build message
-    message = f"""📈 *Team Birthday Analytics* 📈
-
-👥 *TEAM OVERVIEW:*
-• Total birthdays tracked: {total_birthdays}
-• Average per month: {avg_per_month:.1f}
-
-📅 *DISTRIBUTION:*
-• Busiest month: {max_month[0]} ({max_month[1]} birthdays)
-• Quietest month: {min_month[0]} ({min_month[1]} birthday{'s' if min_month[1] != 1 else ''})
-
-⭐ *ZODIAC BREAKDOWN:*
-• Most common: {most_common_zodiac[0]} ({most_common_zodiac[1]} {'people' if most_common_zodiac[1] != 1 else 'person'})
-• Least common: {least_common_zodiac[0]} ({least_common_zodiac[1]} {'people' if least_common_zodiac[1] != 1 else 'person'})
-• Fire signs: {element_counts['Fire']} | Earth: {element_counts['Earth']} | Air: {element_counts['Air']} | Water: {element_counts['Water']}
-
-🎂 *UPCOMING:*
-• This week: {len(this_week)} birthday{'s' if len(this_week) != 1 else ''}
-• This month: {len(this_month)} birthday{'s' if len(this_month) != 1 else ''}
-• Next 30 days: {len(next_30)} birthday{'s' if len(next_30) != 1 else ''}
-
-🎉 *FUN FACTS:*
-• Longest gap between birthdays: {longest_gap} days
-"""
-    
-    if twins:
-        message += f"• Birthday twins: {len(twins)} pair{'s' if len(twins) != 1 else ''}\n"
-        for date, users in list(twins.items())[:2]:  # Show first 2
-            user_mentions = " & ".join([f"<@{u}>" for u in users])
-            message += f"  └ {user_mentions} ({date})\n"
-    else:
-        message += "• No birthday twins yet!\n"
-    
-    say(message)
-
+# Command to set the announcement channel
 @app.command("/setbirthdaychannel")
 def handle_set_channel(ack, command, say):
     """Set the channel for birthday announcements"""
@@ -640,9 +332,10 @@ def handle_set_channel(ack, command, say):
         f"🕐 Daily checks at 9:00 AM Mountain Time\n"
         f"⏰ Current time: {current_time}")
 
+# NEW COMMAND: Add a birthday wish
 @app.command("/addwish")
 def handle_add_wish(ack, command, say):
-    """Add a birthday wish"""
+    """Add a birthday wish for someone"""
     ack()
     
     text = command['text'].strip()
@@ -660,11 +353,13 @@ def handle_add_wish(ack, command, say):
     user_id = parts[0].strip('<@>|')
     message = parts[1]
     
+    # Check if this user has a birthday in the system
     birthdays = load_birthdays()
     if user_id not in birthdays:
-        say(f"<@{user_id}> doesn't have a birthday saved yet!")
+        say(f"<@{user_id}> doesn't have a birthday saved yet! They need to add it first with `/addbirthday`.")
         return
     
+    # Load wishes and add this one
     wishes = load_wishes()
     if user_id not in wishes:
         wishes[user_id] = []
@@ -677,11 +372,12 @@ def handle_add_wish(ack, command, say):
     
     save_wishes(wishes)
     
-    say(f"💌 Your birthday wish for <@{user_id}> has been saved! 🎉")
+    say(f"💌 Your birthday wish for <@{user_id}> has been saved! It will be shared on their birthday. 🎉")
 
+# Command to add a birthday
 @app.command("/addbirthday")
 def handle_add_birthday(ack, command, say):
-    """Add a birthday"""
+    """Handle the /addbirthday command"""
     ack()
     
     text = command['text'].strip()
@@ -693,26 +389,30 @@ def handle_add_birthday(ack, command, say):
     parts = text.split()
     birthdays = load_birthdays()
     
+    # Check if mentioning another user
     if parts[0].startswith('<@'):
         if len(parts) < 2:
-            say("Please provide a date after the user mention!")
+            say("Please provide a date after the user mention! Format: `/addbirthday @user MM-DD`")
             return
         
         user_id = parts[0].strip('<@>|')
         birthday_date = parts[1]
     else:
+        # Adding own birthday
         user_id = command['user_id']
         birthday_date = parts[0]
     
+    # Validate date format
     try:
         test_date = datetime.strptime(f"2024-{birthday_date}", "%Y-%m-%d")
         month = test_date.month
         day = test_date.day
         zodiac_emoji, zodiac_name = get_zodiac_sign(month, day)
     except ValueError:
-        say("Invalid date format! Please use MM-DD")
+        say("Invalid date format! Please use MM-DD (e.g., 03-15 for March 15)")
         return
     
+    # Save the birthday
     birthdays[user_id] = {
         "name": command['user_name'],
         "date": birthday_date
@@ -721,17 +421,19 @@ def handle_add_birthday(ack, command, say):
     
     say(f"🎂 Birthday saved for <@{user_id}> on {birthday_date}! {zodiac_emoji} *{zodiac_name}*")
 
+# Command to list all birthdays
 @app.command("/listbirthdays")
 def handle_list_birthdays(ack, say):
-    """List all birthdays"""
+    """Handle the /listbirthdays command"""
     ack()
     
     birthdays = load_birthdays()
     
     if not birthdays:
-        say("No birthdays saved yet!")
+        say("No birthdays saved yet! Use `/addbirthday MM-DD` to add one.")
         return
     
+    # Sort birthdays by month and day
     sorted_birthdays = sorted(
         birthdays.items(),
         key=lambda x: datetime.strptime(f"2024-{x[1]['date']}", "%Y-%m-%d")
@@ -748,17 +450,20 @@ def handle_list_birthdays(ack, say):
     
     say(message)
 
+# Command to remove a birthday
 @app.command("/removebirthday")
 def handle_remove_birthday(ack, command, say):
-    """Remove a birthday"""
+    """Handle the /removebirthday command"""
     ack()
     
     text = command['text'].strip()
     birthdays = load_birthdays()
     
+    # If user mentions someone, remove that person's birthday
     if text.startswith('<@'):
         user_id = text.strip('<@>|').split()[0]
     else:
+        # Remove own birthday
         user_id = command['user_id']
     
     if user_id in birthdays:
@@ -768,9 +473,10 @@ def handle_remove_birthday(ack, command, say):
     else:
         say(f"No birthday found for <@{user_id}>.")
 
+# Command to check today's birthdays
 @app.command("/birthdaytoday")
 def handle_birthday_today(ack, say):
-    """Check today's birthdays"""
+    """Handle the /birthdaytoday command"""
     ack()
     
     birthday_people = check_birthdays_today()
@@ -783,6 +489,7 @@ def handle_birthday_today(ack, say):
             message += f"🎂 <@{person['user_id']}> is celebrating today! {person['zodiac_emoji']} *{person['zodiac_name']}*\n"
         say(message)
 
+# Command: Birthday Statistics
 @app.command("/birthdaystats")
 def handle_birthday_stats(ack, say):
     """Show birthday statistics"""
@@ -791,9 +498,10 @@ def handle_birthday_stats(ack, say):
     birthdays = load_birthdays()
     
     if not birthdays:
-        say("No birthdays saved yet!")
+        say("No birthdays saved yet! Use `/addbirthday MM-DD` to add one.")
         return
     
+    # Count by month
     month_counts = {}
     zodiac_counts = {}
     
@@ -802,13 +510,16 @@ def handle_birthday_stats(ack, say):
         month_name = datetime(2024, month, 1).strftime("%B")
         month_counts[month_name] = month_counts.get(month_name, 0) + 1
         
+        # Count zodiac signs
         _, zodiac_name = get_zodiac_sign(month, day)
         zodiac_counts[zodiac_name] = zodiac_counts.get(zodiac_name, 0) + 1
     
+    # Get current month birthdays
     mountain_now = get_mountain_time()
     current_month_name = mountain_now.strftime("%B")
     current_month_count = month_counts.get(current_month_name, 0)
     
+    # Find month with most birthdays
     if month_counts:
         max_month = max(month_counts.items(), key=lambda x: x[1])
         max_month_name = max_month[0]
@@ -817,6 +528,7 @@ def handle_birthday_stats(ack, say):
         max_month_name = "None"
         max_month_count = 0
     
+    # Most common zodiac sign
     if zodiac_counts:
         max_zodiac = max(zodiac_counts.items(), key=lambda x: x[1])
         max_zodiac_name = max_zodiac[0]
@@ -825,6 +537,7 @@ def handle_birthday_stats(ack, say):
         max_zodiac_name = "None"
         max_zodiac_count = 0
     
+    # Get upcoming birthdays this month
     upcoming_this_month = []
     today = mountain_now.date()
     for user_id, data in birthdays.items():
@@ -855,33 +568,29 @@ def handle_birthday_stats(ack, say):
     
     say(message)
 
+# Event listener for app mentions
 @app.event("app_mention")
 def handle_mentions(body, say):
-    """Respond to mentions"""
-    say(f"Hi <@{body['event']['user']}>! 👋 I'm the Birthday Bot!\n\n"
-        f"*Commands:*\n"
-        f"• `/addbirthday MM-DD` - Add a birthday\n"
-        f"• `/importbirthdays` - Import from CSV\n"
-        f"• `/listbirthdays` - See all birthdays\n"
-        f"• `/addwish @user message` - Add birthday wish\n"
-        f"• `/birthdayleaderboard` - Month rankings\n"
-        f"• `/teamanalytics` - Full analytics\n"
-        f"• `/setbirthdaychannel` - Set channel")
+    """Respond when the bot is mentioned"""
+    say(f"Hi <@{body['event']['user']}>! 👋 I'm the Birthday Bot!\n\n*Commands:*\n• `/addbirthday MM-DD` - Add a birthday\n• `/listbirthdays` - See all birthdays with zodiac signs\n• `/addwish @user message` - Add a birthday wish\n• `/birthdaystats` - View statistics\n• `/setbirthdaychannel` - Set announcement channel")
 
+# Simple message listener for "birthday" keyword
 @app.message("birthday")
 def respond_to_birthday_message(say):
-    """Respond to birthday mentions"""
-    say("Did someone say birthday? 🎂 Use `/listbirthdays` to see upcoming birthdays!")
+    """Respond when someone mentions 'birthday' in a message"""
+    say("Did someone say birthday? 🎂 Use `/listbirthdays` to see upcoming birthdays with their zodiac signs!")
 
 if __name__ == "__main__":
+    # Start the scheduler in a background thread
     scheduler_thread = threading.Thread(target=schedule_checker, daemon=True)
     scheduler_thread.start()
     
     mountain_now = get_mountain_time()
     current_time = mountain_now.strftime("%I:%M %p %Z")
-    print(f"📅 Scheduler started - checks at 9 AM Mountain Time")
+    print(f"📅 Scheduler started - will check for birthdays daily at 9 AM Mountain Time")
     print(f"⏰ Current Mountain Time: {current_time}")
     
+    # Start the app using Socket Mode
     handler = SocketModeHandler(app, os.environ.get("SLACK_APP_TOKEN"))
-    print("⚡️ Birthday Bot v3 is running!")
+    print("⚡️ Birthday Bot is running!")
     handler.start()
