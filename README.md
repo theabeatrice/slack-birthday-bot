@@ -1,39 +1,46 @@
-# 🎂 Slack Birthday Bot
+# ˗ˏˋ ꒰ 🎂 ꒱ ˎˊ˗ slack birthday bot
 
 A simple and friendly Slack bot to help your team remember and celebrate birthdays!
 
-## Features
+## features 🍰*ੈ✩‧₊˚
 
+v1
 - 📅 **Add birthdays** - Store team member birthdays
 - 📋 **List all birthdays** - See everyone's upcoming birthdays sorted by date
 - 🎉 **Check today's birthdays** - Find out who's celebrating today
 - 🗑️ **Remove birthdays** - Delete birthday entries
 - 💬 **Interactive responses** - Bot responds to mentions and birthday keywords
+v2
+- ⛰️ **Mountain Time with Auto Daylight Savings** - Bot shows current Mountain TIme when you configure it
+- 🍰 **Birthday Wish Collection System** - Reminds the team 3 days before each birthday to add a wish
+- ♊ **Zodiac Signs** - Shows with every birthday and is automatically calculated from birth date
 
-## Prerequisites
+## prerequisites 🍰*ੈ✩‧₊˚
 
 - Python 3.7 or higher
 - A Slack workspace where you can install apps
 - Basic command line knowledge
 
-## Next Steps & Improvements
+## next steps + improvements 🍰*ੈ✩‧₊˚
 
-Here are some ideas to enhance your bot:
+ideas to enhance the bot (v3):
 
-- 🔔 **Automatic birthday announcements** - Schedule daily checks and post to a channel
-- 🎁 **Birthday reminders** - Notify the team a few days before someone's birthday
-- 🎊 **Custom messages** - Personalized birthday greetings
-- 📊 **Birthday statistics** - Who has birthdays in which month
-- 🌐 **Web dashboard** - View birthdays in a browser
-- ☁️ **Deploy to the cloud** - Host on Heroku, AWS, or Google Cloud so it runs 24/7
+- 🔔 **Birthday countdown**
+- 🎁 **Automatic birthday calendar export (.ics)**
+- 🎊 **Custom wishes per person**
+- 📊 **Birthday history**
+- 🌐 **Web dashboard**
+- ☁️ **Birthday milestones**
 
-## Need Help?
+## need help? 🍰*ੈ✩‧₊˚
 
 - [Bolt for Python Documentation](https://slack.dev/bolt-python/)
 - [Slack API Documentation](https://api.slack.com/)
 - The Slack Developer Community
 
-## License
+## license 🍰*ੈ✩‧₊˚
 
-Feel free to use and modify this bot for your team! 🎉
-# updated 
+feel free to use and modify this bot for your team! 🎉
+
+# updated 2/24/2026
+
