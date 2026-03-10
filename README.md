@@ -1,6 +1,6 @@
-# ˗ˏˋ ꒰ 🎂 ꒱ ˎˊ˗ slack birthday bot
+# ˗ˏˋ ꒰ 🎂 ꒱ ˎˊ˗ slack celebrations bot
 
-A simple and friendly Slack bot to help your team remember and celebrate birthdays!
+A simple and friendly Slack bot to help your team remember and celebrate birthdays + anniversaries!
 
 ## features 🍰*ੈ✩‧₊˚
 
@@ -17,7 +17,13 @@ v2
 - ♊ **Zodiac Signs** - Shows with every birthday and is automatically calculated from birth date
 
 v3
-- ⛰️ **CSV Birthday Import** - Import 10, 20, 50+ birthdays at once! No more adding one by one + just upload a CSV file
+- 📂 **CSV Birthday Import** - Import 10, 20, 50+ birthdays at once! No more adding one by one + just upload a CSV file
+
+v4
+- 🎊 **Work Anniversary Tracking** - Track employee work anniversaries with automatic year calculation
+- 📁 **Combined Import** - Import birthdays AND anniversaries in one CSV
+- 🫧 **Anniversary Commands** - /todayscelebrations, /addwish, etc.
+- 💌 **Smart Wish System** - Wishes automatically apply to the right celebration type
 
 ## prerequisites 🍰*ੈ✩‧₊˚
 
@@ -27,14 +33,13 @@ v3
 
 ## next steps + improvements 🍰*ੈ✩‧₊˚
 
-ideas to enhance the bot (v3):
+ideas to enhance the bot (v5):
 
-- 🔔 **Birthday countdown**
-- 🎁 **Automatic birthday calendar export (.ics)**
-- 🎊 **Custom wishes per person**
-- 📊 **Birthday history**
-- 🌐 **Web dashboard**
-- ☁️ **Birthday milestones**
+- 🔔 **Milestone anniversaries (5, 10, 15 year special treatment)**
+- 🎁 **Anniversary statistics (average tenure, longest-serving, etc.)**
+- 🎊 **Department-specific celebrations**
+- 📊 **Custom messages per milestone**
+- ☁️ **Anniversary calendar export**
 
 ## need help? 🍰*ੈ✩‧₊˚
 
