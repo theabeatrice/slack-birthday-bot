@@ -731,6 +731,10 @@ def handle_add_wish(ack, command, say):
     
     text = command['text'].strip()
     
+    # DEBUG: Log what we received
+    print(f"DEBUG /addwish - Received text: '{text}'")
+    print(f"DEBUG /addwish - Command data: {command}")
+    
     if not text:
         say("Please mention a user and include a message! Format: `/addwish @user Your message here`")
         return
@@ -745,15 +749,18 @@ def handle_add_wish(ack, command, say):
     
     # Extract user ID from mention (handles <@U123|name> or <@U123> format)
     first_part = parts[0]
+    print(f"DEBUG /addwish - First part: '{first_part}'")
+    
     if first_part.startswith('<@') and '>' in first_part:
         # Extract user ID from <@U123|name> or <@U123>
         user_id = first_part.strip('<@>').split('|')[0]
+        print(f"DEBUG /addwish - Extracted user_id: '{user_id}'")
     elif first_part.startswith('@'):
         # Handle @username format (less reliable, but try)
-        say("Please use @mention to select the person from the dropdown, not just type their name!")
+        say(f"⚠️ DEBUG: Received '@username' format instead of mention.\n\nReceived: `{first_part}`\n\nPlease use @mention to select the person from the dropdown, not just type their name!")
         return
     else:
-        say("Please mention a user! Format: `/addwish @user Your message here`")
+        say(f"⚠️ DEBUG: First part doesn't look like a mention.\n\nReceived: `{first_part}`\n\nPlease mention a user! Format: `/addwish @user Your message here`")
         return
     
     message = parts[1]
