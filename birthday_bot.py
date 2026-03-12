@@ -725,51 +725,79 @@ def handle_set_channel(ack, command, say):
         f"⏰ Current time: {current_time}")
 
 @app.command("/addwish")
-def handle_add_wish(ack, command, say):
+def handle_add_wish(ack, command, say, client):
     """Add a wish for birthday or anniversary"""
     ack()
     
     text = command['text'].strip()
     
-    # DEBUG: Log what we received
-    print(f"DEBUG /addwish - Received text: '{text}'")
-    print(f"DEBUG /addwish - Command data: {command}")
-    
     if not text:
-        say("Please mention a user and include a message! Format: `/addwish @user Your message here`")
+        say("Please provide a user and message! Format: `/addwish @user Your message here`")
         return
     
-    # Split and check format
+    # Split into parts
     parts = text.split(None, 1)
     
-    # Check if first part looks like a user mention
     if len(parts) < 2:
         say("Please include a message! Format: `/addwish @user Your message here`")
         return
     
-    # Extract user ID from mention (handles <@U123|name> or <@U123> format)
     first_part = parts[0]
-    print(f"DEBUG /addwish - First part: '{first_part}'")
-    
-    if first_part.startswith('<@') and '>' in first_part:
-        # Extract user ID from <@U123|name> or <@U123>
-        user_id = first_part.strip('<@>').split('|')[0]
-        print(f"DEBUG /addwish - Extracted user_id: '{user_id}'")
-    elif first_part.startswith('@'):
-        # Handle @username format (less reliable, but try)
-        say(f"⚠️ DEBUG: Received '@username' format instead of mention.\n\nReceived: `{first_part}`\n\nPlease use @mention to select the person from the dropdown, not just type their name!")
-        return
-    else:
-        say(f"⚠️ DEBUG: First part doesn't look like a mention.\n\nReceived: `{first_part}`\n\nPlease mention a user! Format: `/addwish @user Your message here`")
-        return
-    
     message = parts[1]
     
+    # Try to extract user ID from different formats
+    user_id = None
+    
+    # Format 1: <@U123|name> or <@U123> (proper Slack mention)
+    if first_part.startswith('<@') and '>' in first_part:
+        user_id = first_part.strip('<@>').split('|')[0]
+    
+    # Format 2: @username (what Slack sends in slash commands)
+    elif first_part.startswith('@'):
+        username = first_part[1:]  # Remove the @
+        
+        # Look up user by username
+        try:
+            # Try to find user by display name or real name
+            users_list = client.users_list()
+            for user in users_list['members']:
+                if user.get('deleted'):
+                    continue
+                    
+                profile = user.get('profile', {})
+                user_name_field = user.get('name', '').lower()
+                display_name = profile.get('display_name', '').lower()
+                real_name = profile.get('real_name', '').lower()
+                
+                if (username.lower() == user_name_field or 
+                    username.lower() == display_name or
+                    username.lower() in real_name.lower()):
+                    user_id = user['id']
+                    break
+            
+            if not user_id:
+                say(f"❌ Could not find user '@{username}'. Try using their full name or Slack user ID instead!")
+                return
+                
+        except Exception as e:
+            print(f"Error looking up user: {e}")
+            say(f"❌ Error finding user. Please try: `/addwish U0A63GQ1RDH Your message` (using their Slack user ID)")
+            return
+    
+    # Format 3: Direct user ID (U123456789)
+    elif first_part.startswith('U') and len(first_part) == 11:
+        user_id = first_part
+    
+    else:
+        say("Please provide a valid user! Format: `/addwish @username Your message` or `/addwish U123456 Your message`")
+        return
+    
+    # Load data
     birthdays = load_birthdays()
     anniversaries = load_anniversaries()
     wishes = load_wishes()
     
-    # Determine if it's for birthday or anniversary
+    # Check if user has birthday or anniversary
     has_birthday = user_id in birthdays
     has_anniversary = user_id in anniversaries
     
